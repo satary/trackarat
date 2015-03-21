@@ -9,8 +9,7 @@ from moviepy.editor import *
 from qimage2ndarray import *
 import numpy as np
 import scipy.ndimage
-from PyQt4 import QtGui, QtCore
-from PyQt4.QtOpenGL import *
+from PyQt4 import Qt,QtGui, QtCore
 from skimage import io
 from skimage import color
 from skimage.morphology import  remove_small_objects, convex_hull_image, binary_dilation, binary_erosion
@@ -49,6 +48,10 @@ class Window(QtGui.QMainWindow):
         self.openbgrnd_button = QtGui.QPushButton('Open Background',self)
         self.openbgrnd_button.setIcon(self.style().standardIcon(QtGui.QStyle.SP_DialogOpenButton))
         self.openbgrnd_button.clicked.connect(self.open_bgrnd)
+        
+        self.openmask_button = QtGui.QPushButton('Open Mask',self)
+        self.openmask_button.setIcon(self.style().standardIcon(QtGui.QStyle.SP_DialogOpenButton))
+        self.openmask_button.clicked.connect(self.open_mask)
 
         self.start_processing_button = QtGui.QPushButton('Start / Cancel',self)
         self.start_processing_button.clicked.connect(self.start_processing)
@@ -126,10 +129,52 @@ class Window(QtGui.QMainWindow):
         self.stopButton.setToolTip("Stop")
         self.stopButton.clicked.connect(self.player.stop)
 
-        self.frameSlider = QtGui.QSlider(QtCore.Qt.Horizontal)
-        self.frameSlider.setTickPosition(QtGui.QSlider.TicksBelow)
-        self.frameSlider.setTickInterval(10)
+        self.frameSlider = QtGui.QSlider(self)
+        self.frameSlider.setMinimum(0)
+        self.frameSlider.setMaximum(1000)
+        self.frameSlider.setOrientation(QtCore.Qt.Horizontal)
+        self.frameSlider.setTickPosition(QtGui.QSlider.TicksAbove)
+        self.frameSlider.setTickInterval(200)
         self.frameSlider.sliderMoved.connect(self.goToFrame)
+        
+        videoticks = QtGui.QHBoxLayout()
+        self.videoTicks = [QtGui.QLabel(self) for i in range(6)] 
+               
+        #self.videoTicks[0].setSizePolicy(QtGui.QSizePolicy.Fixed,QtGui.QSizePolicy.Minimum)
+        self.videoTicks[-1].setAlignment(QtCore.Qt.AlignRight)
+        #self.videoTicks[-1].setSizePolicy(QtGui.QSizePolicy.Fixed,QtGui.QSizePolicy.Minimum)
+        [tick.setAlignment(QtCore.Qt.AlignCenter) for tick in self.videoTicks[1:-1]]
+
+        
+        [videoticks.addWidget(tick) for tick in self.videoTicks]
+        videoticks.setStretchFactor(self.videoTicks[0],1)
+        videoticks.setStretchFactor(self.videoTicks[-1],1)
+        [videoticks.setStretchFactor(tick,2) for tick in self.videoTicks[1:-1]]
+        
+        
+        startLbl=QtGui.QLabel('Start:')
+        self.start_time_box = QtGui.QDoubleSpinBox()
+        self.start_time_box.setRange(0,1)
+        self.start_time_box.setSingleStep(1)
+        self.start_time_box.setDecimals(1)
+        self.start_time_box.setValue(0)
+        startbtn=QtGui.QToolButton()
+        startbtn.setText('<')
+        startbtn.clicked.connect(self.setStartTime)
+        
+        EndLbl=QtGui.QLabel('End:')
+        self.end_time_box = QtGui.QDoubleSpinBox()
+        self.end_time_box.setRange(0,1)
+        self.end_time_box.setSingleStep(1)
+        self.end_time_box.setDecimals(1)
+        self.end_time_box.setValue(0)
+        endbtn=QtGui.QToolButton()
+        endbtn.setText('<')
+        endbtn.clicked.connect(self.setEndTime)
+        
+        self.currentTimeLbl=QtGui.QLabel(self)
+        
+        
 
 
 
@@ -159,6 +204,7 @@ class Window(QtGui.QMainWindow):
         vbox1 = QtGui.QVBoxLayout()
         vbox1.addWidget(self.openvideo_button)
         vbox1.addWidget(self.openbgrnd_button)
+        vbox1.addWidget(self.openmask_button)
         vbox1.addWidget(self.start_processing_button)
         vbox1.addWidget(self.process_current_button)
 
@@ -192,12 +238,24 @@ class Window(QtGui.QMainWindow):
         preview_hlot.addWidget(self.playButton)
         preview_hlot.addWidget(self.pauseButton)
         preview_hlot.addWidget(self.stopButton)
+        
+        preview_hlot.addWidget(startLbl)
+        preview_hlot.addWidget(self.start_time_box)
+        preview_hlot.addWidget(startbtn)
+        
+        preview_hlot.addWidget(EndLbl)
+        preview_hlot.addWidget(self.end_time_box)
+        preview_hlot.addWidget(endbtn)
+        preview_hlot.addSpacerItem(QtGui.QSpacerItem(20,0
+            ,QtGui.QSizePolicy.Expanding,QtGui.QSizePolicy.Minimum))
+        preview_hlot.addWidget(self.currentTimeLbl)
         preview_hlot.setAlignment(QtCore.Qt.AlignLeft)
 
         preview_vlot = QtGui.QVBoxLayout()
         preview_vlot.addWidget(self.view)
-        preview_vlot.addSpacerItem(QtGui.QSpacerItem(20,40
-            ,QtGui.QSizePolicy.Minimum,QtGui.QSizePolicy.Minimum))
+        #preview_vlot.addSpacerItem(QtGui.QSpacerItem(20,40
+        #    ,QtGui.QSizePolicy.Minimum,QtGui.QSizePolicy.Minimum))
+        preview_vlot.addLayout(videoticks)
         preview_vlot.addWidget(self.frameSlider)
         preview_vlot.addLayout(preview_hlot)
         preview_vlot.setAlignment(QtCore.Qt.AlignTop)
@@ -231,14 +289,37 @@ class Window(QtGui.QMainWindow):
         splitter1 = QtGui.QSplitter(QtCore.Qt.Horizontal)
         splitter1.addWidget(SettingsArea)
         splitter1.addWidget(tabs)
-        splitter1.setSizes([180,460])
+        splitter1.setSizes([120,480])
         splitter1.splitterMoved.connect(self.update_image)
 
 
         self.setCentralWidget(splitter1)
         self.setGeometry(100,100,640,480)
         self.show()
-
+        
+    def setStartTime(self):
+        self.start_time_box.setValue(round((self.frameSlider.value()/999.0)*self.player.duration,2))
+    
+    def setEndTime(self):
+        self.end_time_box.setValue(round((self.frameSlider.value()/999.0)*self.player.duration,2))
+        
+    def setTicks(self,length):        
+        step=length/(len(self.videoTicks)-1)
+        i=0
+        for tick in self.videoTicks:
+            tick.setText(str(round(step*i,1)))
+            i+=1
+            
+        self.start_time_box.setRange(0,length)
+        self.start_time_box.setSingleStep(1)
+        self.start_time_box.setDecimals(1)
+        self.start_time_box.setValue(0)
+        
+        self.end_time_box.setRange(0,length)
+        self.end_time_box.setSingleStep(1)
+        self.end_time_box.setDecimals(1)
+        self.end_time_box.setValue(length)
+    
     def setSettings(self):
         self.player.trhd = self.treshhold_box.value()
         self.player.obj_area = self.obj_area_box.value()
@@ -264,7 +345,10 @@ class Window(QtGui.QMainWindow):
 
     def goToFrame(self):
         QtCore.QCoreApplication.processEvents()
-        self.player.showframe(self.frameSlider.value())
+        self.player.showframe(self.frameSlider.value()) 
+        time=str(round((self.frameSlider.value()/999.0)*self.player.duration,2))
+        self.currentTimeLbl.setText(time)
+          
 
     def open_video_file(self):
         filename=unicode(QtGui.QFileDialog.getOpenFileName(self,
@@ -277,16 +361,24 @@ class Window(QtGui.QMainWindow):
         if(filename != ''):
             self.player.open_bgrnd(filename)
             self.update_bgnd(None)
+    
+    def open_mask(self):
+        filename=unicode(QtGui.QFileDialog.getOpenFileName(self,
+        'Open background file'))
+        if(filename != ''):
+            self.player.open_mask(filename)
+            #self.update_bgnd(None)
 
 
     def start_processing(self):
         self.player.processing = not(self.player.processing)
-        self.player.process_all()
+        self.player.process_all(self.start_time_box.value(),self.end_time_box.value())
         
     def process_current(self):
         self.player.process_current()
 
     def update_image(self,event=None):
+        
         try:
             pixmap=QtGui.QPixmap.fromImage(array2qimage(self.player.frame))
             #print self.player.frame.shape

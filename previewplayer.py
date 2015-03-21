@@ -9,7 +9,6 @@ from qimage2ndarray import *
 import numpy as np
 import scipy.ndimage
 from PyQt4 import QtGui, QtCore
-from PyQt4.QtOpenGL import *
 from skimage import io
 from skimage import color
 from skimage.morphology import  remove_small_objects, convex_hull_image, binary_dilation, binary_erosion
@@ -44,7 +43,9 @@ class PreviewPlayer(QtCore.QObject):
         if(path != ''):
             self.cur_frame=0
             self.clip=VideoFileClip(path)  
-            self.length = round(self.clip.fps*self.clip.duration) + 1
+            self.duration = self.clip.duration
+            self.parent.setTicks(self.duration)
+            self.length = round(self.clip.fps*self.duration) + 1
             self.frame=self.clip.get_frame(self.cur_frame)
             #self.pixmap = QtGui.QPixmap.fromImage(array2qimage(frame))
             self.signal_update_image.emit()
@@ -59,6 +60,10 @@ class PreviewPlayer(QtCore.QObject):
     def open_bgrnd(self,path):
         self.bgnd=color.rgb2gray(io.imread(path))
         self.aoi=[0,self.bgnd.shape[0],0,self.bgnd.shape[1]]
+        
+    def open_mask(self,path):
+        self.mask=color.rgb2gray(io.imread(path))
+        print self.mask.max()
         
             
 
@@ -80,7 +85,7 @@ class PreviewPlayer(QtCore.QObject):
         
     def showframe(self,sliderPos):
         
-        self.cur_frame=(float(sliderPos)/99)*(self.length)
+        self.cur_frame=(float(sliderPos)/999)*(self.length)
         
         self.frame=self.clip.get_frame(self.cur_frame/self.clip.fps)
         #self.pixmap = QtGui.QPixmap.fromImage(array2qimage(frame))
@@ -93,17 +98,20 @@ class PreviewPlayer(QtCore.QObject):
             #self.pixmap = QtGui.QPixmap.fromImage(array2qimage(frame))
             self.signal_update_image.emit()
             self.cur_frame+=1
-            self.parent.frameSlider.setValue(round(float(99*self.cur_frame)/float(self.length)))
+            self.parent.frameSlider.setValue(round(float(999*self.cur_frame)/float(self.length)))
+            self.parent.currentTimeLbl.setText(str(round((self.parent.frameSlider.value()/999.0)*self.duration,2)))
             
             #QtCore.QCoreApplication.processEvents()
             
-    def process_all(self):
+    def process_all(self,t_start,t_end):
         
+        processclip=self.clip.subclip(t_start=t_start, t_end=t_end)
+        self.currentLength=round(self.clip.fps*processclip.duration) + 1
         if self.processing:
             self.parent.pbar.show()
             self.skipped=0
             self.status=0
-            for frame in self.clip.iter_frames():
+            for frame in processclip.iter_frames():
                 if self.processing:
                     self.process_image(frame)
                 else:
@@ -126,7 +134,8 @@ class PreviewPlayer(QtCore.QObject):
     def process_image(self,frame):
 
         substracted = (self.get_aoi(color.rgb2gray(frame),self.aoi) - self.get_aoi(self.bgnd,self.aoi))
-        binarized= ( substracted > self.trhd)
+        masked = substracted*(self.get_aoi(color.rgb2gray(self.mask),self.aoi)!=0)
+        binarized= ( masked > self.trhd)
         
         clean=self.fill_holes(remove_small_objects(binarized,self.obj_area))
         
@@ -158,7 +167,7 @@ class PreviewPlayer(QtCore.QObject):
                 self.signal_update_image.emit()
             except:
                 self.skipped+=1
-        self.parent.pbar.setValue(float(self.status)*100/self.length)
+        self.parent.pbar.setValue(float(self.status)*100/self.currentLength)
         
     def get_aoi(self,grayscale_img,aoi):
         
