@@ -63,6 +63,13 @@ class PreviewPlayer(QtCore.QObject):
         
     def open_mask(self,path):
         self.mask=color.rgb2gray(io.imread(path))
+        x=(np.array([self.mask[:,i].sum() for i in range(self.mask.shape[1])])!=0)
+        self.aoi[2]=np.where(x==True)[0][0]
+        self.aoi[3]=np.where(x==True)[0][-1]        
+        y=(np.array([self.mask[i,:].sum() for i in range(self.mask.shape[0])])!=0)
+        self.aoi[0]=np.where(y==True)[0][0]
+        self.aoi[1]=np.where(y==True)[0][-1]
+        
         print self.mask.max()
         
             
@@ -114,6 +121,7 @@ class PreviewPlayer(QtCore.QObject):
             for frame in processclip.iter_frames():
                 if self.processing:
                     self.process_image(frame)
+                    self.parent.pbar.setValue(float(self.status)*100/self.currentLength)
                 else:
                     return
                     
@@ -167,7 +175,7 @@ class PreviewPlayer(QtCore.QObject):
                 self.signal_update_image.emit()
             except:
                 self.skipped+=1
-        self.parent.pbar.setValue(float(self.status)*100/self.currentLength)
+        
         
     def get_aoi(self,grayscale_img,aoi):
         

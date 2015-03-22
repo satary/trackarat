@@ -96,6 +96,19 @@ class Window(QtGui.QMainWindow):
         self.preview_step_combo_box.addItems(calculation_steps)
         self.preview_step_combo_box.setCurrentIndex(4)
         self.preview_step_combo_box.currentIndexChanged.connect(self.setSettings)
+        
+        self.framebyframe_checkbox = QtGui.QCheckBox('Process every frame', self)
+        self.framebyframe_checkbox.setCheckState(2)
+        self.framebyframe_checkbox.stateChanged.connect(self.toogleProcessBox)
+        
+        self.process_label = QtGui.QLabel(self)
+        self.process_label.setText("Process only (seconds)")
+        self.process_label.hide()
+        self.process_box = QtGui.QDoubleSpinBox()
+        self.process_box.setRange(0,10)
+        self.process_box.setDecimals(1)
+        self.process_box.setValue(1)
+        self.process_box.hide()
 
 
 ### PREVIEW
@@ -210,6 +223,7 @@ class Window(QtGui.QMainWindow):
 
 
 
+
         vbox1.addWidget(treshhold_label)
         vbox1.addWidget(self.treshhold_box)
         vbox1.addWidget(obj_area_label)
@@ -218,6 +232,9 @@ class Window(QtGui.QMainWindow):
         vbox1.addWidget(self.shrink_box)
         vbox1.addWidget(self.preview_checkbox)
         vbox1.addWidget(self.preview_step_combo_box)
+        vbox1.addWidget(self.framebyframe_checkbox)
+        vbox1.addWidget(self.process_label)
+        vbox1.addWidget(self.process_box)
         vbox1.addWidget(self.pbar)
         vbox1.setAlignment(QtCore.Qt.AlignTop)
         self.pbar.hide()
@@ -333,6 +350,14 @@ class Window(QtGui.QMainWindow):
             
         if not(self.player.processing):
             self.player.process_current()
+            
+    def toogleProcessBox(self):
+        if self.framebyframe_checkbox.isChecked():
+            self.process_box.hide()
+            self.process_label.hide()
+        else:
+            self.process_box.show()
+            self.process_label.show()
 
     def start(self):
         QtCore.QCoreApplication.processEvents()
