@@ -59,7 +59,8 @@ class PreviewPlayer(QtCore.QObject):
             
     def open_bgrnd(self,path):
         self.bgnd=color.rgb2gray(io.imread(path))
-        self.aoi=[0,self.bgnd.shape[0],0,self.bgnd.shape[1]]
+        if self.aoi==[0,0,1,1]:
+            self.aoi=[0,self.bgnd.shape[0],0,self.bgnd.shape[1]]
         
     def open_mask(self,path):
         self.mask=color.rgb2gray(io.imread(path))
@@ -69,8 +70,6 @@ class PreviewPlayer(QtCore.QObject):
         y=(np.array([self.mask[i,:].sum() for i in range(self.mask.shape[0])])!=0)
         self.aoi[0]=np.where(y==True)[0][0]
         self.aoi[1]=np.where(y==True)[0][-1]
-        
-        print self.mask.max()
         
             
 
@@ -110,33 +109,51 @@ class PreviewPlayer(QtCore.QObject):
             
             #QtCore.QCoreApplication.processEvents()
             
-    def process_all(self,t_start,t_end):
+    def process_all(self,t_start,t_end,step=None):
         
         processclip=self.clip.subclip(t_start=t_start, t_end=t_end)
         self.currentLength=round(self.clip.fps*processclip.duration) + 1
         if self.processing:
             self.parent.pbar.show()
-            self.skipped=0
-            self.status=0
-            for frame in processclip.iter_frames():
-                if self.processing:
-                    self.process_image(frame)
-                    self.parent.pbar.setValue(float(self.status)*100/self.currentLength)
-                else:
-                    return
+            skipped=0
+            status=0
+            result=[]
+            time=[]
+            if step==None:
+                for frame in processclip.iter_frames():
+                    if self.processing:
+                        a,b=self.process_image(frame)
+                        skipped+=a
+                        result.append(b)                        
+                        status+=1
+                        time.append[float(status)*self.clip.fps]
+                        self.parent.pbar.setValue(float(status)*100/self.currentLength)
+                    else:
+                        return 
+            else:
+                for i in np.arange(0,processclip.duration,step):
+                    if self.processing:
+                        frame=processclip.get_frame(i)
+                        a,b=self.process_image(frame)
+                        skipped+=a
+                        result.append(b)
+                        time.append(i)
+                        status+=1
+                        self.parent.pbar.setValue(float(status)*step*100/self.duration)
+                    else:
+                        return
                     
             self.processing=False
-            print("Done! " + str( self.skipped)+ " frames skipped!" )
+            print("Done! " + str(skipped)+ " frames skipped!" )
             self.parent.pbar.hide()
+            print time 
+            print result
         else:
             self.parent.pbar.hide()
                 #QtCore.QCoreApplication.processEvents()
             
     def process_current(self):
-        self.skipped=0
-        self.status=0
-        self.process_image(self.clip.get_frame(self.cur_frame/self.clip.fps))
-        if self.skipped==1:
+        if self.process_image(self.clip.get_frame(self.cur_frame/self.clip.fps)) == 1:
             print("Object not found!" )
             
     def process_image(self,frame):
@@ -151,7 +168,6 @@ class PreviewPlayer(QtCore.QObject):
         
         com=center_of_mass(result)
         QtCore.QCoreApplication.processEvents()
-        self.status+=1
         if self.disp_proc_pic:
             try:
                 if self.output_style==0:    
@@ -173,8 +189,9 @@ class PreviewPlayer(QtCore.QObject):
                     self.frame = merged*255
                 
                 self.signal_update_image.emit()
+                return 0,com
             except:
-                self.skipped+=1
+                return 1,None
         
         
     def get_aoi(self,grayscale_img,aoi):

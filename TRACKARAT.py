@@ -102,7 +102,7 @@ class Window(QtGui.QMainWindow):
         self.framebyframe_checkbox.stateChanged.connect(self.toogleProcessBox)
         
         self.process_label = QtGui.QLabel(self)
-        self.process_label.setText("Process only (seconds)")
+        self.process_label.setText("Process every (seconds)")
         self.process_label.hide()
         self.process_box = QtGui.QDoubleSpinBox()
         self.process_box.setRange(0,10)
@@ -112,14 +112,10 @@ class Window(QtGui.QMainWindow):
 
 
 ### PREVIEW
-        self.scene = QtGui.QGraphicsScene()
-        self.view = QtGui.QGraphicsView(self.scene)
-
-        self.pixmap_item = QtGui.QGraphicsPixmapItem(QtGui.QPixmap(), None, self.scene)
-        self.pixmap_item.mousePressEvent = self.pixelSelect
-        self.view.setVerticalScrollBarPolicy(1)
-        self.view.setHorizontalScrollBarPolicy(1)
-        self.view.centerOn(1.0, 1.0)
+        
+        self.video_label = QtGui.QLabel(self)
+        self.video_label.setSizePolicy(QtGui.QSizePolicy.Ignored,QtGui.QSizePolicy.Ignored)
+        self.video_label.setAlignment(QtCore.Qt.AlignCenter)
 
 
         iconSize = QtCore.QSize(20, 20)
@@ -129,18 +125,21 @@ class Window(QtGui.QMainWindow):
         self.playButton.setIconSize(iconSize)
         self.playButton.setToolTip("Play")
         self.playButton.clicked.connect(self.start)
+        self.playButton.setSizePolicy(QtGui.QSizePolicy.Minimum,QtGui.QSizePolicy.Fixed)
 
         self.pauseButton = QtGui.QToolButton()
         self.pauseButton.setIcon(self.style().standardIcon(QtGui.QStyle.SP_MediaPause))
         self.pauseButton.setIconSize(iconSize)
         self.pauseButton.setToolTip("Pause")
         self.pauseButton.clicked.connect(self.player.pause)
+        self.pauseButton.setSizePolicy(QtGui.QSizePolicy.Minimum,QtGui.QSizePolicy.Fixed)
 
         self.stopButton = QtGui.QToolButton()
         self.stopButton.setIcon(self.style().standardIcon(QtGui.QStyle.SP_MediaStop))
         self.stopButton.setIconSize(iconSize)
         self.stopButton.setToolTip("Stop")
         self.stopButton.clicked.connect(self.player.stop)
+        self.stopButton.setSizePolicy(QtGui.QSizePolicy.Minimum,QtGui.QSizePolicy.Fixed)
 
         self.frameSlider = QtGui.QSlider(self)
         self.frameSlider.setMinimum(0)
@@ -149,13 +148,14 @@ class Window(QtGui.QMainWindow):
         self.frameSlider.setTickPosition(QtGui.QSlider.TicksAbove)
         self.frameSlider.setTickInterval(200)
         self.frameSlider.sliderMoved.connect(self.goToFrame)
+        self.frameSlider.setSizePolicy(QtGui.QSizePolicy.Minimum,QtGui.QSizePolicy.Fixed)
         
         videoticks = QtGui.QHBoxLayout()
         self.videoTicks = [QtGui.QLabel(self) for i in range(6)] 
                
-        #self.videoTicks[0].setSizePolicy(QtGui.QSizePolicy.Fixed,QtGui.QSizePolicy.Minimum)
+        self.videoTicks[0].setSizePolicy(QtGui.QSizePolicy.Minimum,QtGui.QSizePolicy.Fixed)
         self.videoTicks[-1].setAlignment(QtCore.Qt.AlignRight)
-        #self.videoTicks[-1].setSizePolicy(QtGui.QSizePolicy.Fixed,QtGui.QSizePolicy.Minimum)
+        self.videoTicks[-1].setSizePolicy(QtGui.QSizePolicy.Minimum,QtGui.QSizePolicy.Fixed)
         [tick.setAlignment(QtCore.Qt.AlignCenter) for tick in self.videoTicks[1:-1]]
 
         
@@ -166,26 +166,33 @@ class Window(QtGui.QMainWindow):
         
         
         startLbl=QtGui.QLabel('Start:')
+        startLbl.setSizePolicy(QtGui.QSizePolicy.Minimum,QtGui.QSizePolicy.Fixed)
         self.start_time_box = QtGui.QDoubleSpinBox()
         self.start_time_box.setRange(0,1)
         self.start_time_box.setSingleStep(1)
         self.start_time_box.setDecimals(1)
         self.start_time_box.setValue(0)
+        self.start_time_box.setSizePolicy(QtGui.QSizePolicy.Minimum,QtGui.QSizePolicy.Fixed)
         startbtn=QtGui.QToolButton()
         startbtn.setText('<')
         startbtn.clicked.connect(self.setStartTime)
+        startbtn.setSizePolicy(QtGui.QSizePolicy.Minimum,QtGui.QSizePolicy.Fixed)
         
         EndLbl=QtGui.QLabel('End:')
+        EndLbl.setSizePolicy(QtGui.QSizePolicy.Minimum,QtGui.QSizePolicy.Fixed)
         self.end_time_box = QtGui.QDoubleSpinBox()
         self.end_time_box.setRange(0,1)
         self.end_time_box.setSingleStep(1)
         self.end_time_box.setDecimals(1)
         self.end_time_box.setValue(0)
+        self.end_time_box.setSizePolicy(QtGui.QSizePolicy.Minimum,QtGui.QSizePolicy.Fixed)
         endbtn=QtGui.QToolButton()
         endbtn.setText('<')
         endbtn.clicked.connect(self.setEndTime)
+        endbtn.setSizePolicy(QtGui.QSizePolicy.Minimum,QtGui.QSizePolicy.Fixed)
         
         self.currentTimeLbl=QtGui.QLabel(self)
+        self.currentTimeLbl.setSizePolicy(QtGui.QSizePolicy.Minimum,QtGui.QSizePolicy.Fixed)
         
         
 
@@ -196,18 +203,15 @@ class Window(QtGui.QMainWindow):
 
 ### background and AOI
 
-        self.l_crop_Slider = QtGui.QSlider(QtCore.Qt.Horizontal)
-        self.l_crop_Slider.valueChanged.connect(self.changeAOI)
-        self.r_crop_Slider = QtGui.QSlider(QtCore.Qt.Horizontal)
-        self.r_crop_Slider.setValue(100)
-        self.r_crop_Slider.valueChanged.connect(self.changeAOI)
-        self.t_crop_Slider = QtGui.QSlider(QtCore.Qt.Vertical)
-        self.t_crop_Slider.valueChanged.connect(self.changeAOI)
-        self.b_crop_Slider = QtGui.QSlider(QtCore.Qt.Vertical)
-        self.t_crop_Slider.setValue(100)
-        self.b_crop_Slider.valueChanged.connect(self.changeAOI)
         self.bgng_label = QtGui.QLabel(self)
-        self.bgng_label.setSizePolicy(QtGui.QSizePolicy.Expanding,QtGui.QSizePolicy.Expanding)
+        self.bgng_label.setSizePolicy(QtGui.QSizePolicy.Ignored,QtGui.QSizePolicy.Ignored)
+        self.bgng_label.setAlignment(QtCore.Qt.AlignCenter)
+        
+### masks
+
+        self.mask_label = QtGui.QLabel(self)
+        self.mask_label.setSizePolicy(QtGui.QSizePolicy.Ignored,QtGui.QSizePolicy.Ignored)
+        self.mask_label.setAlignment(QtCore.Qt.AlignCenter)
 
 
 
@@ -220,10 +224,6 @@ class Window(QtGui.QMainWindow):
         vbox1.addWidget(self.openmask_button)
         vbox1.addWidget(self.start_processing_button)
         vbox1.addWidget(self.process_current_button)
-
-
-
-
         vbox1.addWidget(treshhold_label)
         vbox1.addWidget(self.treshhold_box)
         vbox1.addWidget(obj_area_label)
@@ -243,13 +243,14 @@ class Window(QtGui.QMainWindow):
         SettingsArea.setLayout(vbox1)
 
         tabs = QtGui.QTabWidget(self)
-        tab1 = QtGui.QWidget()
+        self.tab1 = QtGui.QWidget()
+        #except:
         self.tab2 = QtGui.QWidget()
-        tab3 = QtGui.QWidget()
+        self.tab3 = QtGui.QWidget()
 
-        tabs.addTab(tab1,"Preview")
-        tab1.resizeEvent = self.update_image
-        tab1.resizeEvent = self.update_bgnd
+        tabs.addTab(self.tab1,"Preview")
+        self.tab1.resizeEvent = self.update_image
+        #tab1.resizeEvent = self.update_bgnd
 
         preview_hlot = QtGui.QHBoxLayout()
         preview_hlot.addWidget(self.playButton)
@@ -268,40 +269,39 @@ class Window(QtGui.QMainWindow):
         preview_hlot.addWidget(self.currentTimeLbl)
         preview_hlot.setAlignment(QtCore.Qt.AlignLeft)
 
+
         preview_vlot = QtGui.QVBoxLayout()
-        preview_vlot.addWidget(self.view)
+        dum_hlot = QtGui.QHBoxLayout()
+        dum_hlot.addWidget(self.video_label)
+        preview_vlot.addLayout(dum_hlot)
         #preview_vlot.addSpacerItem(QtGui.QSpacerItem(20,40
-        #    ,QtGui.QSizePolicy.Minimum,QtGui.QSizePolicy.Minimum))
+        #    ,QtGui.QSizePolicy.Expanding,QtGui.QSizePolicy.Minimum))
         preview_vlot.addLayout(videoticks)
         preview_vlot.addWidget(self.frameSlider)
         preview_vlot.addLayout(preview_hlot)
-        preview_vlot.setAlignment(QtCore.Qt.AlignTop)
+        #preview_vlot.setAlignment(QtCore.Qt.AlignBottom)
+        #self.video_label.setAlignment(QtCore.Qt.AlignCenter)
 
-        tab1.setLayout(preview_vlot)
+        self.tab1.setLayout(preview_vlot)
 
         tabs.addTab(self.tab2,"Background and AoI")
         self.tab2.resizeEvent = self.update_bgnd
 
-        bgnd_glot = QtGui.QGridLayout()
-
-        bgnd_glot.addWidget(self.t_crop_Slider,1,0)
-        bgnd_glot.addWidget(self.b_crop_Slider,1,2)
-        bgnd_glot.addWidget(self.l_crop_Slider,0,1)
-        bgnd_glot.addWidget(self.r_crop_Slider,2,1)
-
-        bgnd_glot.addWidget(self.bgng_label,1,1)
-
-        bgnd_vlot = QtGui.QVBoxLayout()
-        bgnd_vlot.addLayout(bgnd_glot)
-
-        bgnd_vlot.addSpacerItem(QtGui.QSpacerItem(20,40
-            ,QtGui.QSizePolicy.Minimum,QtGui.QSizePolicy.Minimum))
+        self.bgnd_vlot = QtGui.QVBoxLayout()
 
 
-        self.tab2.setLayout(bgnd_vlot)
+        self.bgnd_vlot.addWidget(self.bgng_label)
 
 
-        tabs.addTab(tab3,"Masks")
+
+        self.tab2.setLayout(self.bgnd_vlot)
+
+
+        tabs.addTab(self.tab3,"Mask")
+        self.tab3.resizeEvent = self.update_mask
+        self.mask_vlot = QtGui.QVBoxLayout()
+        self.mask_vlot.addWidget(self.mask_label)
+        self.tab3.setLayout(self.mask_vlot)
 
         splitter1 = QtGui.QSplitter(QtCore.Qt.Horizontal)
         splitter1.addWidget(SettingsArea)
@@ -389,48 +389,39 @@ class Window(QtGui.QMainWindow):
     
     def open_mask(self):
         filename=unicode(QtGui.QFileDialog.getOpenFileName(self,
-        'Open background file'))
+        'Open mask file'))
         if(filename != ''):
             self.player.open_mask(filename)
-            #self.update_bgnd(None)
+            self.update_bgnd(None)
+            self.update_mask(None)
 
 
     def start_processing(self):
         self.player.processing = not(self.player.processing)
-        self.player.process_all(self.start_time_box.value(),self.end_time_box.value())
+        if self.framebyframe_checkbox.isChecked():
+            self.player.process_all(self.start_time_box.value(),self.end_time_box.value())
+        else:
+            self.player.process_all(self.start_time_box.value(),self.end_time_box.value(),self.process_box.value())
         
     def process_current(self):
         self.player.process_current()
 
-    def update_image(self,event=None):
-        
+    def update_image(self,event=None):        
         try:
+            self.video_label.resize(self.tab1.size()-QtCore.QSize(20,120))
             pixmap=QtGui.QPixmap.fromImage(array2qimage(self.player.frame))
-            #print self.player.frame.shape
-            pix=pixmap.scaled(self.view.size(), QtCore.Qt.KeepAspectRatio)
-            ofset = pix.size()-self.view.size()/2
-            self.pixmap_item.setPixmap(pix)
-            #self.pixmap_item.setOffset(5,5)
-            #self.outbox.setPixmap(pixmap.scaled(self.outbox.size(), QtCore.Qt.KeepAspectRatio))
-            self.pixmap_item.update()
+            pixmap=pixmap.scaled(self.video_label.size(), QtCore.Qt.KeepAspectRatio)
+            
+            self.video_label.setPixmap(pixmap)
+            
             QtCore.QCoreApplication.processEvents()
-        except:
-            return
-
-    def changeAOI(self):
-        try:
-            self.player.changeAOI([self.t_crop_Slider.value(),
-                                   self.b_crop_Slider.value(),
-                                   self.l_crop_Slider.value(),
-                                   self.r_crop_Slider.value()])
-            self.update_bgnd(None)
         except:
             return
 
     def update_bgnd(self,event):
         try:
 
-            self.bgng_label.resize(self.tab2.size()-QtCore.QSize(60,110))
+            self.bgng_label.resize(self.tab2.size()-QtCore.QSize(20,20))
 
             mask=np.zeros((self.player.bgnd.shape[0],self.player.bgnd.shape[1]))
 
@@ -438,12 +429,23 @@ class Window(QtGui.QMainWindow):
 
             pix=QtGui.QPixmap.fromImage(array2qimage(self.player.bgnd * mask*255))
             pix=pix.scaled(self.bgng_label.size(), QtCore.Qt.KeepAspectRatio)
-            self.bgng_label.update()
 
             self.bgng_label.setPixmap(pix)
         except:
             return
+            
+    def update_mask(self,event):
+        try:
 
+            self.mask_label.resize(self.tab3.size()-QtCore.QSize(20,20))
+
+            pix=QtGui.QPixmap.fromImage(array2qimage(self.player.mask*255))
+            pix=pix.scaled(self.mask_label.size(), QtCore.Qt.KeepAspectRatio)
+
+            self.mask_label.setPixmap(pix)
+        except:
+            return
+        
 
     def closeEvent(self, event):
         self.player.close()
