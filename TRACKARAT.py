@@ -20,7 +20,32 @@ from scipy.ndimage.measurements import center_of_mass
 from skimage.draw import circle
 
 
+class CusLabel(QtGui.QLabel):
+    def __init__(self, parent):
+        super(CusLabel, self).__init__(parent)
+        self.parent=parent
+        self.setMouseTracking(True)
+        self.corner1=None
+        self.corner2=None
 
+    def mousePressEvent(self, e):       
+        super(CusLabel, self).mousePressEvent(e)
+        if (self.corner1==None) or ((self.corner1!=None) and (self.corner2!=None)):
+            self.corner1=[e.x(),e.y()]
+            self.corner2=None
+        elif (self.corner1!=None) and (self.corner2==None):
+            self.corner2= [e.x(),e.y()]
+            self.parent.square=[self.corner1[0],self.corner1[1],self.corner2[0],self.corner2[1]]
+        else:
+            self.corner1=None
+            self.corner2=None
+        
+    def mouseMoveEvent(self, e):
+        super(CusLabel, self).mouseMoveEvent(e)
+        if (self.corner1!=None) and (self.corner2==None):
+            self.parent.square=[self.corner1[0],self.corner1[1],e.x(),e.y()]
+            self.parent.update_image()
+            
 
 
 class Window(QtGui.QMainWindow):
@@ -39,6 +64,8 @@ class Window(QtGui.QMainWindow):
 
         #self.playThread.started.connect(self.player.startCapture)
         self.playThread.start()
+        self.bgnd_creation=False
+        self.square=None
 
 ### SETTINGS AREA
         self.openvideo_button = QtGui.QPushButton('Open File',self)
@@ -67,7 +94,7 @@ class Window(QtGui.QMainWindow):
         self.treshhold_box.setRange(0,1)
         self.treshhold_box.setSingleStep(0.05)
         self.treshhold_box.setDecimals(2)
-        self.treshhold_box.setValue(0.1)
+        self.treshhold_box.setValue(0.05)
         self.treshhold_box.valueChanged.connect(self.setSettings)
 
 
@@ -109,6 +136,21 @@ class Window(QtGui.QMainWindow):
         self.process_box.setDecimals(1)
         self.process_box.setValue(1)
         self.process_box.hide()
+        
+        coordx_label = QtGui.QLabel(self)
+        coordx_label.setText("xSize:")
+        self.coordx_box = QtGui.QDoubleSpinBox()
+        self.coordx_box.setRange(0,1000)
+        self.coordx_box.setSingleStep(1)
+        self.coordx_box.setDecimals(0)
+        self.coordx_box.setValue(122)
+        coordy_label = QtGui.QLabel(self)
+        coordy_label.setText("xSize:")
+        self.coordy_box = QtGui.QDoubleSpinBox()
+        self.coordy_box.setRange(0,1000)
+        self.coordy_box.setSingleStep(1)
+        self.coordy_box.setDecimals(0)
+        self.coordy_box.setValue(122)
 
 
 ### PREVIEW
@@ -203,9 +245,21 @@ class Window(QtGui.QMainWindow):
 
 ### background and AOI
 
-        self.bgng_label = QtGui.QLabel(self)
+        self.bgng_label = CusLabel(self)
         self.bgng_label.setSizePolicy(QtGui.QSizePolicy.Ignored,QtGui.QSizePolicy.Ignored)
         self.bgng_label.setAlignment(QtCore.Qt.AlignCenter)
+        self.create_bgrnd_btn=QtGui.QPushButton()
+        self.create_bgrnd_btn.setText('Create background')
+        self.create_bgrnd_btn.clicked.connect(self.start_bgrnd_creation)
+        self.select_1_frame_btn=QtGui.QPushButton()
+        self.select_1_frame_btn.setText('Select first frame')
+        self.select_1_frame_btn.clicked.connect(self.select_1_bgrnd_creation)
+        self.select_2_frame_btn=QtGui.QPushButton()
+        self.select_2_frame_btn.setText('Select second frame')
+        self.select_2_frame_btn.clicked.connect(self.select_2_bgrnd_creation)
+        self.proceed_bgrnd_btn=QtGui.QPushButton()
+        self.proceed_bgrnd_btn.setText('Done!')
+        self.proceed_bgrnd_btn.clicked.connect(self.stop_bgrnd_creation)
         
 ### masks
 
@@ -236,13 +290,27 @@ class Window(QtGui.QMainWindow):
         vbox1.addWidget(self.process_label)
         vbox1.addWidget(self.process_box)
         vbox1.addWidget(self.pbar)
+        grid1 = QtGui.QGridLayout()
+        grid1.addWidget(coordx_label,0,0)
+        grid1.addWidget(self.coordx_box,1,0)
+        grid1.addWidget(coordy_label,0,1)
+        grid1.addWidget(self.coordy_box,1,1)
+        vbox1.addLayout(grid1)
         vbox1.setAlignment(QtCore.Qt.AlignTop)
         self.pbar.hide()
 
+
+
         SettingsArea=QtGui.QWidget()
         SettingsArea.setLayout(vbox1)
-
+        
+        tab_layout=QtGui.QVBoxLayout()
         tabs = QtGui.QTabWidget(self)
+        tab_layout.addWidget(tabs)
+
+        TabsArea=QtGui.QWidget()
+        TabsArea.setLayout(tab_layout)
+        
         self.tab1 = QtGui.QWidget()
         #except:
         self.tab2 = QtGui.QWidget()
@@ -276,9 +344,7 @@ class Window(QtGui.QMainWindow):
         preview_vlot.addLayout(dum_hlot)
         #preview_vlot.addSpacerItem(QtGui.QSpacerItem(20,40
         #    ,QtGui.QSizePolicy.Expanding,QtGui.QSizePolicy.Minimum))
-        preview_vlot.addLayout(videoticks)
-        preview_vlot.addWidget(self.frameSlider)
-        preview_vlot.addLayout(preview_hlot)
+        
         #preview_vlot.setAlignment(QtCore.Qt.AlignBottom)
         #self.video_label.setAlignment(QtCore.Qt.AlignCenter)
 
@@ -288,9 +354,13 @@ class Window(QtGui.QMainWindow):
         self.tab2.resizeEvent = self.update_bgnd
 
         self.bgnd_vlot = QtGui.QVBoxLayout()
-
-
+        self.bgnd_vlot.addWidget(self.create_bgrnd_btn)
         self.bgnd_vlot.addWidget(self.bgng_label)
+        self.bgnd_hlot = QtGui.QHBoxLayout()
+        self.bgnd_hlot.addWidget(self.select_1_frame_btn)
+        self.bgnd_hlot.addWidget(self.select_2_frame_btn)
+        self.bgnd_hlot.addWidget(self.proceed_bgrnd_btn)
+        self.bgnd_vlot.addLayout(self.bgnd_hlot)
 
 
 
@@ -302,10 +372,12 @@ class Window(QtGui.QMainWindow):
         self.mask_vlot = QtGui.QVBoxLayout()
         self.mask_vlot.addWidget(self.mask_label)
         self.tab3.setLayout(self.mask_vlot)
-
+        tab_layout.addLayout(videoticks)
+        tab_layout.addWidget(self.frameSlider)
+        tab_layout.addLayout(preview_hlot)
         splitter1 = QtGui.QSplitter(QtCore.Qt.Horizontal)
         splitter1.addWidget(SettingsArea)
-        splitter1.addWidget(tabs)
+        splitter1.addWidget(TabsArea)
         splitter1.setSizes([120,480])
         splitter1.splitterMoved.connect(self.update_image)
 
@@ -314,6 +386,24 @@ class Window(QtGui.QMainWindow):
         self.setGeometry(100,100,640,480)
         self.show()
         
+    def start_bgrnd_creation(self):
+        self.bgnd_creation=True
+        self.update_image()
+        return
+    def select_1_bgrnd_creation(self):
+        self.bgnd1=self.player.frame
+        return
+    def select_2_bgrnd_creation(self):
+        self.bgnd2=self.player.frame
+        return
+    def stop_bgrnd_creation(self):
+        frame=color.rgb2gray(self.bgnd1)
+        frame[self.bgnd_slice[0]:self.bgnd_slice[1],self.bgnd_slice[2]:self.bgnd_slice[3]]=color.rgb2gray(self.bgnd2)[self.bgnd_slice[0]:self.bgnd_slice[1],self.bgnd_slice[2]:self.bgnd_slice[3]]
+        self.player.set_bgrnd(frame)
+        self.bgnd_creation=False
+        self.update_bgnd()
+        return
+    
     def setStartTime(self):
         self.start_time_box.setValue(round((self.frameSlider.value()/999.0)*self.player.duration,2))
     
@@ -406,45 +496,69 @@ class Window(QtGui.QMainWindow):
     def process_current(self):
         self.player.process_current()
 
-    def update_image(self,event=None):        
+    def update_image(self,event=None,square=None):        
         try:
-            self.video_label.resize(self.tab1.size()-QtCore.QSize(20,120))
-            pixmap=QtGui.QPixmap.fromImage(array2qimage(self.player.frame))
-            pixmap=pixmap.scaled(self.video_label.size(), QtCore.Qt.KeepAspectRatio)
-            
-            self.video_label.setPixmap(pixmap)
+            if self.bgnd_creation:
+                self.video_label.resize(self.tab2.size()-QtCore.QSize(20,20))
+                size=self.video_label.size()
+                frame=color.rgb2gray(self.player.frame)
+                if self.square!=None:
+                    y1=self.square[1]/float(size.height())*frame.shape[0]
+                    y2=self.square[3]/float(size.height())*frame.shape[0]
+                    x1=self.square[0]/float(size.width())*frame.shape[1]
+                    x2=self.square[2]/float(size.width())*frame.shape[1]
+                    self.bgnd_slice=[y1,y2,x1,x2]
+                    frame[y1:y2,x1:x2]=1
+                pixmap=QtGui.QPixmap.fromImage(array2qimage(frame*255))
+                pixmap=pixmap.scaled(self.video_label.size(), QtCore.Qt.KeepAspectRatio)
+
+                self.bgng_label.setPixmap(pixmap)
+            else:
+                self.video_label.resize(self.tab1.size()-QtCore.QSize(20,20))
+                pixmap=QtGui.QPixmap.fromImage(array2qimage(self.player.frame))
+                pixmap=pixmap.scaled(self.video_label.size(), QtCore.Qt.KeepAspectRatio)
+                self.video_label.setPixmap(pixmap)
             
             QtCore.QCoreApplication.processEvents()
         except:
             return
 
-    def update_bgnd(self,event):
-        try:
+    def update_bgnd(self,event=None):
+        if self.bgnd_creation:
+            self.update_image()
+        else:
+            try:
 
-            self.bgng_label.resize(self.tab2.size()-QtCore.QSize(20,20))
+                self.bgng_label.resize(self.tab2.size()-QtCore.QSize(20,20))
 
-            mask=np.zeros((self.player.bgnd.shape[0],self.player.bgnd.shape[1]))
+                mask=np.zeros((self.player.bgnd.shape[0],self.player.bgnd.shape[1]))
 
-            mask[self.player.aoi[0]:self.player.aoi[1],self.player.aoi[2]:self.player.aoi[3]]=1
+                mask[self.player.aoi[0]:self.player.aoi[1],self.player.aoi[2]:self.player.aoi[3]]=1
 
-            pix=QtGui.QPixmap.fromImage(array2qimage(self.player.bgnd * mask*255))
-            pix=pix.scaled(self.bgng_label.size(), QtCore.Qt.KeepAspectRatio)
-
-            self.bgng_label.setPixmap(pix)
-        except:
-            return
+                pix=QtGui.QPixmap.fromImage(array2qimage(self.player.bgnd * mask*255))
+                pix=pix.scaled(self.bgng_label.size(), QtCore.Qt.KeepAspectRatio)
+                
+                
+                self.bgng_label.setPixmap(pix)
+            except:
+                self.bgng_label.setText('No Image Loaded')
+                return
             
     def update_mask(self,event):
-        try:
+        if self.bgnd_creation:
+            self.update_image()
+        else:
+            try:
 
-            self.mask_label.resize(self.tab3.size()-QtCore.QSize(20,20))
+                self.mask_label.resize(self.tab3.size()-QtCore.QSize(20,20))
 
-            pix=QtGui.QPixmap.fromImage(array2qimage(self.player.mask*255))
-            pix=pix.scaled(self.mask_label.size(), QtCore.Qt.KeepAspectRatio)
-
-            self.mask_label.setPixmap(pix)
-        except:
-            return
+                pix=QtGui.QPixmap.fromImage(array2qimage(self.player.mask*255))
+                pix=pix.scaled(self.mask_label.size(), QtCore.Qt.KeepAspectRatio)
+                
+                self.mask_label.setPixmap(pix)
+            except:
+                self.mask_label.setText('No Image Loaded')
+                return
         
 
     def closeEvent(self, event):

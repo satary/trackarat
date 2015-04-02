@@ -58,7 +58,11 @@ class PreviewPlayer(QtCore.QObject):
         self.aoi[3]=round((float(aoi[3])/99)*self.bgnd.shape[1])
             
     def open_bgrnd(self,path):
-        self.bgnd=color.rgb2gray(io.imread(path))
+        image=color.rgb2gray(io.imread(path))
+        self.set_bgrnd(image)
+
+    def set_bgrnd(self,image):
+        self.bgnd=image
         if self.aoi==[0,0,1,1]:
             self.aoi=[0,self.bgnd.shape[0],0,self.bgnd.shape[1]]
         
@@ -126,7 +130,7 @@ class PreviewPlayer(QtCore.QObject):
                         skipped+=a
                         result.append(b)                        
                         status+=1
-                        time.append[float(status)*self.clip.fps]
+                        time.append(float(status)*self.clip.fps)
                         self.parent.pbar.setValue(float(status)*100/self.currentLength)
                     else:
                         return 
@@ -146,8 +150,8 @@ class PreviewPlayer(QtCore.QObject):
             self.processing=False
             print("Done! " + str(skipped)+ " frames skipped!" )
             self.parent.pbar.hide()
-            print time 
-            print result
+            print np.vstack((time,result)).flatten()
+             
         else:
             self.parent.pbar.hide()
                 #QtCore.QCoreApplication.processEvents()
