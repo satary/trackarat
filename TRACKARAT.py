@@ -18,6 +18,7 @@ from skimage.feature import peak_local_max
 from skimage.measure import label
 from scipy.ndimage.measurements import center_of_mass
 from skimage.draw import circle
+from tablewidget import TableWidget
 
 
 class CusLabel(QtGui.QLabel):
@@ -315,7 +316,7 @@ class Window(QtGui.QMainWindow):
         #except:
         self.tab2 = QtGui.QWidget()
         self.tab3 = QtGui.QWidget()
-
+        self.tab4 = QtGui.QWidget()
         tabs.addTab(self.tab1,"Preview")
         self.tab1.resizeEvent = self.update_image
         #tab1.resizeEvent = self.update_bgnd
@@ -373,6 +374,15 @@ class Window(QtGui.QMainWindow):
         self.mask_vlot = QtGui.QVBoxLayout()
         self.mask_vlot.addWidget(self.mask_label)
         self.tab3.setLayout(self.mask_vlot)
+        
+        self.table=TableWidget(self)
+        tabs.addTab(self.tab4,"Result")
+        self.result_vlot = QtGui.QVBoxLayout()
+        self.result_vlot.addWidget(self.table)
+        self.tab4.setLayout(self.result_vlot)
+        
+        
+        
         tab_layout.addLayout(videoticks)
         tab_layout.addWidget(self.frameSlider)
         tab_layout.addLayout(preview_hlot)
