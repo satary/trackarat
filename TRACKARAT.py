@@ -246,7 +246,7 @@ class Window(QtGui.QMainWindow):
 ### background and AOI
 
         self.bgng_label = CusLabel(self)
-        self.bgng_label.setSizePolicy(QtGui.QSizePolicy.Ignored,QtGui.QSizePolicy.Ignored)
+        self.bgng_label.setSizePolicy(QtGui.QSizePolicy.Fixed,QtGui.QSizePolicy.Fixed)
         self.bgng_label.setAlignment(QtCore.Qt.AlignCenter)
         self.create_bgrnd_btn=QtGui.QPushButton()
         self.create_bgrnd_btn.setText('Create background')
@@ -497,31 +497,43 @@ class Window(QtGui.QMainWindow):
         self.player.process_current()
 
     def update_image(self,event=None,square=None):        
-        try:
-            if self.bgnd_creation:
-                self.video_label.resize(self.tab2.size()-QtCore.QSize(20,20))
-                size=self.video_label.size()
-                frame=color.rgb2gray(self.player.frame)
-                if self.square!=None:
-                    y1=self.square[1]/float(size.height())*frame.shape[0]
-                    y2=self.square[3]/float(size.height())*frame.shape[0]
-                    x1=self.square[0]/float(size.width())*frame.shape[1]
-                    x2=self.square[2]/float(size.width())*frame.shape[1]
-                    self.bgnd_slice=[y1,y2,x1,x2]
-                    frame[y1:y2,x1:x2]=1
-                pixmap=QtGui.QPixmap.fromImage(array2qimage(frame*255))
-                pixmap=pixmap.scaled(self.video_label.size(), QtCore.Qt.KeepAspectRatio)
-
-                self.bgng_label.setPixmap(pixmap)
-            else:
-                self.video_label.resize(self.tab1.size()-QtCore.QSize(20,20))
-                pixmap=QtGui.QPixmap.fromImage(array2qimage(self.player.frame))
-                pixmap=pixmap.scaled(self.video_label.size(), QtCore.Qt.KeepAspectRatio)
-                self.video_label.setPixmap(pixmap)
+        #try:
+        if self.bgnd_creation:
             
-            QtCore.QCoreApplication.processEvents()
-        except:
-            return
+            frame=color.rgb2gray(self.player.frame)
+            ratio = float(frame.shape[1])/frame.shape[0]
+            print ratio
+            size=self.tab2.size()-QtCore.QSize(20,20)
+            if (size.height()*ratio) > size.width():
+                size=QtCore.QSize(size.width(),int(size.width()/ratio))
+                print 1
+            else:
+                size=QtCore.QSize(size.height()*ratio,int(size.height()))
+                print 2
+#
+            self.video_label.resize(size)
+            
+            if self.square!=None:
+                print self.square[3]/float(size.height())
+                y1=self.square[1]/float(size.height())*frame.shape[0]
+                y2=self.square[3]/float(size.height())*frame.shape[0]
+                x1=self.square[0]/float(size.width())*frame.shape[1]
+                x2=self.square[2]/float(size.width())*frame.shape[1]
+                self.bgnd_slice=[y1,y2,x1,x2]
+                frame[y1:y2,x1:x2]=1
+            pixmap=QtGui.QPixmap.fromImage(array2qimage(frame*255))
+            pixmap=pixmap.scaled(size, QtCore.Qt.KeepAspectRatio)
+            self.bgng_label.setPixmap(pixmap)
+            
+        else:
+            self.video_label.resize(self.tab1.size()-QtCore.QSize(20,20))
+            pixmap=QtGui.QPixmap.fromImage(array2qimage(self.player.frame))
+            pixmap=pixmap.scaled(self.video_label.size(), QtCore.Qt.KeepAspectRatio)
+            self.video_label.setPixmap(pixmap)
+        
+        QtCore.QCoreApplication.processEvents()
+        #except:
+        #    return
 
     def update_bgnd(self,event=None):
         if self.bgnd_creation:
