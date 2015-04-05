@@ -246,7 +246,7 @@ class Window(QtGui.QMainWindow):
 ### background and AOI
 
         self.bgng_label = CusLabel(self)
-        self.bgng_label.setSizePolicy(QtGui.QSizePolicy.Fixed,QtGui.QSizePolicy.Fixed)
+        self.bgng_label.setSizePolicy(QtGui.QSizePolicy.Ignored,QtGui.QSizePolicy.Ignored)
         self.bgng_label.setAlignment(QtCore.Qt.AlignCenter)
         self.create_bgrnd_btn=QtGui.QPushButton()
         self.create_bgrnd_btn.setText('Create background')
@@ -361,6 +361,7 @@ class Window(QtGui.QMainWindow):
         self.bgnd_hlot.addWidget(self.select_2_frame_btn)
         self.bgnd_hlot.addWidget(self.proceed_bgrnd_btn)
         self.bgnd_vlot.addLayout(self.bgnd_hlot)
+        #self.bgnd_vlot.setAlignment(QtCore.Qt.AlignTop)
 
 
 
