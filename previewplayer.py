@@ -17,6 +17,10 @@ from skimage.feature import peak_local_max
 from skimage.measure import label
 from scipy.ndimage.measurements import center_of_mass
 from skimage.draw import circle
+import subprocess as sp
+from moviepy.config import get_setting
+
+from moviepy.tools import subprocess_call
 
 class PreviewPlayer(QtCore.QObject): 
     signal_update_image = QtCore.pyqtSignal()  
@@ -56,14 +60,24 @@ class PreviewPlayer(QtCore.QObject):
     def openVid(self,path):
         if(path != ''):
             self.cur_frame=0
-            self.clip=VideoFileClip(path)  
+            try:
+                self.clip=VideoFileClip(path,audio=False)  
+            except:
+                self.clip=self.force_open(path)
             self.duration = self.clip.duration
             self.parent.setTicks(self.duration)
             self.length = round(self.clip.fps*self.duration) + 1
             self.frame=self.clip.get_frame(self.cur_frame)
             #self.pixmap = QtGui.QPixmap.fromImage(array2qimage(frame))
             self.signal_update_image.emit()
-            
+
+    def force_open(self,path):
+        cmd= [get_setting("FFMPEG_BINARY"), "-i", path,"-y", "-an", "-r", str(30),"-vcodec","copy",
+             'tmp.avi']
+        subprocess_call(cmd,verbose=True)
+        return VideoFileClip('tmp.avi',audio=False)  
+             
+    
     def changeAOI(self,aoi):
         self.aoi = aoi
         self.aoi[0]=round((float((99-aoi[0]))/99)*self.bgnd.shape[0])
@@ -236,6 +250,7 @@ class PreviewPlayer(QtCore.QObject):
         result=self.erosion_N_times(clean,self.diamond,self.shrink)
         
         com=center_of_mass(result)
+        
         QtCore.QCoreApplication.processEvents()
         if self.disp_proc_pic:
             try:
@@ -258,9 +273,17 @@ class PreviewPlayer(QtCore.QObject):
                     self.frame = merged*255
                 
                 self.signal_update_image.emit()
-                return 0,com
+            
             except:
+                pass
+            
+            if np.isnan(com[0]) or np.isnan(com[1]):
                 return 1,None
+            else:
+                print com
+                return 0,com
+               
+            
         
         
     def get_aoi(self,grayscale_img,aoi):
