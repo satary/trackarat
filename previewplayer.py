@@ -38,6 +38,20 @@ class PreviewPlayer(QtCore.QObject):
         self.aoi=[0,0,1,1]
         self.output_style=4
         self.diamond = np.array([0,1,0,1,1,1,0,1,0], dtype=bool).reshape((3,3))
+    '''
+    def cart2pol(self,x, y):
+        rho = np.sqrt(x**2 + y**2)
+        phi = np.arctan2(y, x)
+        return(rho, phi)
+    '''    
+    def cart2pol(self,x, y):
+        """returns r, theta(degrees0-360)
+        """
+        r = np.sqrt(x ** 2 + y ** 2)
+        theta = np.degrees(np.arctan2(y, x))
+        if theta<0:
+            theta=360+theta
+        return r, theta
         
     def openVid(self,path):
         if(path != ''):
@@ -116,7 +130,8 @@ class PreviewPlayer(QtCore.QObject):
     def process_all(self,t_start,t_end,step=None):
         
         processclip=self.clip.subclip(t_start=t_start, t_end=t_end)
-        self.currentLength=round(self.clip.fps*processclip.duration) + 1
+        duration=processclip.duration
+        self.currentLength=round(self.clip.fps*duration) + 1
         if self.processing:
             self.parent.pbar.show()
             skipped=0
@@ -128,9 +143,9 @@ class PreviewPlayer(QtCore.QObject):
                     if self.processing:
                         a,b=self.process_image(frame)
                         skipped+=a
-                        result.append(b)                        
+                        time=float(status)*self.clip.fps
+                        result.append([time,b]) 
                         status+=1
-                        time.append(float(status)*self.clip.fps)
                         self.parent.pbar.setValue(float(status)*100/self.currentLength)
                     else:
                         return 
@@ -140,22 +155,72 @@ class PreviewPlayer(QtCore.QObject):
                         frame=processclip.get_frame(i)
                         a,b=self.process_image(frame)
                         skipped+=a
-                        result.append(b)
-                        time.append(i)
+                        result.append([i,b])
                         status+=1
-                        self.parent.pbar.setValue(float(status)*step*100/self.duration)
+                        self.parent.pbar.setValue(float(status)*step*100/duration)
                     else:
                         return
                     
             self.processing=False
             print("Done! " + str(skipped)+ " frames skipped!" )
             self.parent.pbar.hide()
-            print np.vstack((time,result)).flatten()
+            self.process_data(result)
              
         else:
             self.parent.pbar.hide()
                 #QtCore.QCoreApplication.processEvents()
+    def process_data(self,result):
+        i=0
+        empty=[]
+        for line in result:
+            if line[1]==None:
+                empty.append(i)
+            i+=1    
+        if len(empty)!=0:
+            filtered=np.delete(result,empty,0)
+        else:
+            filtered=np.array(result,dtype=object)
+        step=filtered[1,0]-filtered[0,0]
+        times=np.asarray(filtered[:,0].tolist())
+        coord=np.asarray(filtered[:,1].tolist())
+        dataframe=np.column_stack((times,coord))
+        x_unit=self.parent.coordx_box.value()
+        y_unit=self.parent.coordy_box.value()
+        dataframe[:,1]*=y_unit/float(self.aoi[1]-self.aoi[0])
+        dataframe[:,2]*=x_unit/float(self.aoi[3]-self.aoi[2])
+        time=dataframe[-1,0]
+        distance=np.sum(np.linalg.norm(dataframe[1:,1:]-dataframe[:-1,1:],axis=1))
+        speed=distance/float(time)
+        
+
+        cartez = np.array([[line[2]-float(x_unit/2),-(line[1]-float(y_unit/2))] for line in dataframe])
+        polar = np.array([self.cart2pol(line[2]-float(x_unit/2),-(line[1]-float(y_unit/2))) for line in dataframe])
+        home=polar[-1,1]
+        polar_refer=polar.copy()
+        polar_refer[:,1]-=(home-360/36)
+        polar_refer[:,1]*=18/360.0
+        polar_refer[:,1]=polar_refer[:,1].astype(int)
+        i=0
+        for line in polar_refer:
+            if line[1]<-8:
+                 polar_refer[i,1]=line[1]+18
+            elif line[1]>9:
+                polar_refer[i,1]=line[1]-18
+            if line[0]<30:
+                polar_refer[i,1]=100
+            i+=1
+        result_dict={'Total':{'Distance':distance,'Time':time,'Speed':speed}}
+        subresult = [[x,polar_refer[:,1].tolist().count(x)] for x in set(polar_refer[:,1].tolist())]
+        for i in subresult:
+            if i[0]==100:
+                result_dict['Center']={'Time':i[1]*step}
+            else:
+                result_dict[str(int(i[0]))]={'Time':i[1]*step}
+        self.parent.table.buildFromDict(result_dict,['Distance','Time','Speed'],[])
             
+        
+        #print polar_refer
+        
     def process_current(self):
         if self.process_image(self.clip.get_frame(self.cur_frame/self.clip.fps)) == 1:
             print("Object not found!" )
